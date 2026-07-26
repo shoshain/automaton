@@ -64,6 +64,7 @@ export interface PlannerGoalInput {
   actualRevenueCents: number;
   createdAt: string;
   deadline: string | null;
+  targetProject: string | null;
 }
 
 export interface PlannerFailureInput {
@@ -144,6 +145,7 @@ export function goalToPlannerInput(goal: Goal): PlannerGoalInput {
     actualRevenueCents: goal.actualRevenueCents,
     createdAt: goal.createdAt,
     deadline: goal.deadline,
+    targetProject: goal.targetProject,
   };
 }
 
@@ -176,6 +178,7 @@ export function createPlannerGoalFromTask(task: Pick<
     actualRevenueCents: 0,
     createdAt: task.metadata.createdAt,
     deadline: null,
+    targetProject: null, // not tracked at task level; sub-plan workers inherit allowedEditRoot via goalId, not this synthetic input.
   };
 }
 
@@ -550,6 +553,7 @@ function buildPlannerUserPrompt(params: {
       actualRevenueCents: params.goal.actualRevenueCents,
       createdAt: params.goal.createdAt,
       deadline: params.goal.deadline,
+      targetProject: params.goal.targetProject,
     },
   };
 

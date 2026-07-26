@@ -1040,6 +1040,7 @@ function goalRowToGoal(goal: GoalRow): Goal {
     actualRevenueCents: goal.actualRevenueCents,
     createdAt: goal.createdAt,
     deadline: goal.deadline,
+    targetProject: goal.targetProject,
   };
 }
 

@@ -9,6 +9,7 @@ import { sanitizeToolResult } from "../injection-defense.js";
 import { executeTool } from "../tools.js";
 import { getForbiddenCommandMatch, isForbiddenCommand } from "../policy-rules/command-safety.js";
 import { isSensitiveFile } from "../policy-rules/path-protection.js";
+import { isProjectReadOnly } from "../policy-rules/project-access.js";
 
 const MAX_EXEC_TIMEOUT_MS = 30_000;
 const MAX_READ_SIZE = 10_000;
@@ -119,6 +120,7 @@ When calling task_done, provide:
           required: ["command"],
         },
         execute: async (args) => {
+          if (isProjectReadOnly(this.context.projectWritable)) return `Blocked: cannot execute commands in read-only project "${this.context.allowedEditRoot}"`;
           const command = args.command as string;
           const timeoutMs = Math.min(
             typeof args.timeout_ms === "number" ? args.timeout_ms : MAX_EXEC_TIMEOUT_MS,
@@ -148,6 +150,7 @@ When calling task_done, provide:
           required: ["path", "content"],
         },
         execute: async (args) => {
+          if (isProjectReadOnly(this.context.projectWritable)) return `Blocked: cannot write to read-only project "${this.context.allowedEditRoot}"`;
           const filePath = args.path as string;
           const content = args.content as string;
           const confined = confineToWorkspace(filePath, this.context.allowedEditRoot);
