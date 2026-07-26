@@ -46,6 +46,7 @@ import {
   MIGRATION_V9_ALTER_CHILDREN_ROLE,
   MIGRATION_V10,
   MIGRATION_V11,
+  MIGRATION_V12,
 } from "./schema.js";
 import type {
   RiskLevel,
@@ -625,6 +626,12 @@ function applyMigrations(db: DatabaseType): void {
         try { db.exec(MIGRATION_V11); } catch { /* column may already exist */ }
       },
     },
+    {
+      version: 12,
+      apply: () => {
+        try { db.exec(MIGRATION_V12); } catch { /* column may already exist */ }
+      },
+    },
   ];
 
   for (const m of migrations) {
@@ -696,6 +703,7 @@ export interface GoalRow {
   createdAt: string;
   deadline: string | null;
   completedAt: string | null;
+  targetProject: string | null;
 }
 
 export interface TaskGraphRow {
@@ -862,6 +870,7 @@ export function insertGoal(
     actualRevenueCents?: number;
     deadline?: string | null;
     completedAt?: string | null;
+    targetProject?: string | null;
   },
 ): string {
   const id = ulid();
@@ -869,8 +878,8 @@ export function insertGoal(
   const status = row.status ?? "active";
   const completedAt = row.completedAt ?? (status === "completed" ? now : null);
   db.prepare(
-    `INSERT INTO goals (id, title, description, status, strategy, expected_revenue_cents, actual_revenue_cents, created_at, deadline, completed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO goals (id, title, description, status, strategy, expected_revenue_cents, actual_revenue_cents, created_at, deadline, completed_at, target_project)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     row.title,
@@ -882,6 +891,7 @@ export function insertGoal(
     now,
     row.deadline ?? null,
     completedAt,
+    row.targetProject ?? null,
   );
   return id;
 }
@@ -2257,6 +2267,7 @@ function deserializeGoalRow(row: any): GoalRow {
     createdAt: row.created_at,
     deadline: row.deadline ?? null,
     completedAt: row.completed_at ?? null,
+    targetProject: row.target_project ?? null,
   };
 }
 

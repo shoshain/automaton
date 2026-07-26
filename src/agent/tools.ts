@@ -22,6 +22,7 @@ import type {
 import type { PolicyEngine } from "./policy-engine.js";
 import { sanitizeToolResult, sanitizeInput } from "./injection-defense.js";
 import { createLogger } from "../observability/logger.js";
+import { isKnownProjectKey, listProjectKeys } from "../orchestration/project-registry.js";
 
 const logger = createLogger("tools");
 
@@ -2822,6 +2823,14 @@ Model: ${ctx.inference.getDefaultModel()}
             description:
               "Optional strategic guidance for the planner (e.g., 'prioritize speed over cost')",
           },
+          target_project: {
+            type: "string",
+            description:
+              "Optional project registry key confining this goal's work to that project's root " +
+              "(e.g. 'ArchAngel'). Omit to work in the automaton's own repo. Read-only entries " +
+              "(AIP/*) can be read and analyzed but never written to.",
+            enum: listProjectKeys(),
+          },
         },
         required: ["title", "description"],
       },
@@ -2833,9 +2842,16 @@ Model: ${ctx.inference.getDefaultModel()}
         const description = (args.description as string).trim();
         const strategy =
           typeof args.strategy === "string" ? args.strategy.trim() : undefined;
+        const targetProject =
+          typeof args.target_project === "string" && args.target_project.trim().length > 0
+            ? args.target_project.trim()
+            : undefined;
 
         if (!title) return "Error: goal title cannot be empty.";
         if (!description) return "Error: goal description cannot be empty.";
+        if (targetProject && !isKnownProjectKey(targetProject)) {
+          return `Error: unknown target_project "${targetProject}". Valid keys: ${listProjectKeys().join(", ")}`;
+        }
 
         // Dedup: reject if a similar active goal already exists
         const activeGoals = getActiveGoals(ctx.db.raw);
@@ -2868,7 +2884,7 @@ Model: ${ctx.inference.getDefaultModel()}
           );
         }
 
-        const goal = createGoal(ctx.db.raw, title, description, strategy);
+        const goal = createGoal(ctx.db.raw, title, description, strategy, targetProject);
         return (
           `Goal created: "${goal.title}" (id: ${goal.id}, status: ${goal.status})\n` +
           `The orchestrator will pick this up on the next tick and begin planning.\n` +

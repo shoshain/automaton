@@ -11,6 +11,7 @@ import {
   withTransaction,
 } from "../state/database.js";
 import type { GoalRow, TaskGraphRow } from "../state/database.js";
+import { isKnownProjectKey } from "./project-registry.js";
 
 export type TaskStatus =
   | "pending"
@@ -66,6 +67,7 @@ export interface Goal {
   actualRevenueCents: number;
   createdAt: string;
   deadline: string | null;
+  targetProject: string | null;
 }
 
 type DecomposeTaskInput = Omit<TaskNode, "id" | "metadata">;
@@ -88,6 +90,7 @@ export function createGoal(
   title: string,
   description: string,
   strategy?: string,
+  targetProject?: string | null,
 ): Goal {
   const normalizedTitle = title.trim();
   const normalizedDescription = description.trim();
@@ -100,10 +103,15 @@ export function createGoal(
     throw new Error("Goal description cannot be empty");
   }
 
+  if (targetProject && !isKnownProjectKey(targetProject)) {
+    throw new Error(`Unknown target project "${targetProject}" — not in the project registry`);
+  }
+
   const id = insertGoal(db, {
     title: normalizedTitle,
     description: normalizedDescription,
     strategy: strategy ?? null,
+    targetProject: targetProject ?? null,
   });
 
   const row = getGoalById(db, id);
@@ -500,6 +508,7 @@ function goalRowToGoal(row: GoalRow, rootTasks: string[]): Goal {
     actualRevenueCents: row.actualRevenueCents,
     createdAt: row.createdAt,
     deadline: row.deadline,
+    targetProject: row.targetProject,
   };
 }
 

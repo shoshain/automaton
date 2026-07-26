@@ -5,7 +5,7 @@
  * The database IS the automaton's memory.
  */
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 export const CREATE_TABLES = `
   -- Schema version tracking
@@ -678,4 +678,15 @@ export const MIGRATION_V10 = `
 
   CREATE INDEX idx_knowledge_category ON knowledge_store(category);
   CREATE INDEX idx_knowledge_key ON knowledge_store(key);
+`;
+
+// === AISCETA Integration: Goal Target Project ===
+
+export const MIGRATION_V12 = `
+  -- Schema version: 12
+  -- Add target_project column to goals table so a goal can declare which
+  -- project-registry entry (see orchestration/project-registry.ts) its
+  -- work is confined to. NULL means the automaton's own repo (legacy
+  -- self-edit behavior, unchanged).
+  ALTER TABLE goals ADD COLUMN target_project TEXT;
 `;

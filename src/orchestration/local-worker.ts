@@ -5,7 +5,6 @@
  * Each worker executes through a harness chosen by role via HarnessRegistry.
  */
 
-import path from "node:path";
 import { ulid } from "ulid";
 import { createLogger } from "../observability/logger.js";
 import type { HarnessContext, WorkerInferenceClient } from "../agent/harness-types.js";
@@ -14,6 +13,8 @@ import { HarnessRegistry } from "../agent/harness-registry.js";
 import { completeTask, failTask } from "./task-graph.js";
 import type { TaskNode } from "./task-graph.js";
 import { AgentWorkspace } from "./workspace.js";
+import { resolveAllowedEditRoot } from "./project-registry.js";
+import { getGoalById } from "../state/database.js";
 import type {
   AutomatonConfig,
   AutomatonIdentity,
@@ -101,11 +102,16 @@ export class LocalWorkerPool {
   private async runWorker(workerId: string, task: TaskNode, signal: AbortSignal): Promise<void> {
     const harness = this.config.harnessRegistry.createForRole(task.agentRole);
     const workspace = new AgentWorkspace(task.goalId);
-    const allowedEditRoot = path.resolve(this.config.allowedEditRoot ?? DEFAULT_ALLOWED_EDIT_ROOT);
+    const goalRow = getGoalById(this.config.db, task.goalId);
+    const { root: allowedEditRoot, writable: projectWritable } = resolveAllowedEditRoot(
+      goalRow?.targetProject,
+      this.config.allowedEditRoot ?? DEFAULT_ALLOWED_EDIT_ROOT,
+    );
     const workerIdentity = createWorkerIdentity(this.config.identity, workerId, task.agentRole);
     const context: HarnessContext = {
       workspaceRoot: workspace.basePath,
       allowedEditRoot,
+      projectWritable,
       workspace,
       identity: workerIdentity,
       config: this.config.config,

@@ -37,6 +37,14 @@ export interface HarnessTool {
 export interface HarnessContext {
   workspaceRoot: string;
   allowedEditRoot: string;
+  /**
+   * Whether allowedEditRoot may be written to. Resolved once per worker by
+   * LocalWorkerPool from the goal's declared target project (see
+   * orchestration/project-registry.ts). undefined defaults to writable —
+   * preserves behavior for callers/tests that don't use the project
+   * registry. Enforced in agent/policy-rules/project-access.ts.
+   */
+  projectWritable?: boolean;
   workspace: AgentWorkspace;
   identity: AutomatonIdentity;
   config: AutomatonConfig;
