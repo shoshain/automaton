@@ -4,7 +4,6 @@ import chalk from "chalk";
 import type { AutomatonConfig, TreasuryPolicy } from "../types.js";
 import { DEFAULT_TREASURY_POLICY } from "../types.js";
 import { getWallet, getAutomatonDir } from "../identity/wallet.js";
-import { provision } from "../identity/provision.js";
 import { createConfig, saveConfig } from "../config.js";
 import { writeDefaultHeartbeatConfig } from "../heartbeat/config.js";
 import { showBanner } from "./banner.js";
@@ -45,38 +44,31 @@ export async function runSetupWizard(): Promise<AutomatonConfig> {
   }
   console.log(chalk.dim(`  Private key stored at: ${getAutomatonDir()}/wallet.json\n`));
 
-  // ─── 2. Provision API key ─────────────────────────────────────
-  const provisionLabel = walletChainType === "solana"
-    ? "  [2/6] Provisioning Conway API key (SIWS)..."
-    : "  [2/6] Provisioning Conway API key (SIWE)...";
-  console.log(chalk.cyan(provisionLabel));
+  // ─── 2. Conway API key (optional, legacy) ─────────────────────
+  // SIWE/SIWS auto-provisioning has been removed: Conway's SIWE flow has a
+  // long-standing bug that has cost real users real USDC (see
+  // STRATEGIC_PLAN.md §2-3). The automaton's primary identity/payment
+  // mechanism is now the local AgentKit wallet (src/wallet/agentkit-wallet.ts,
+  // Base Sepolia testnet). A Conway API key is optional -- enter one only if
+  // you already have one from elsewhere.
+  console.log(chalk.cyan("  [2/6] Conway API key (optional, legacy)..."));
   let apiKey = "";
-  try {
-    const result = await provision(undefined, walletChainType === "solana" ? chainIdentity : undefined);
-    apiKey = result.apiKey;
-    console.log(chalk.green(`  API key provisioned: ${result.keyPrefix}...\n`));
-  } catch (err: any) {
-    console.log(chalk.yellow(`  Auto-provision failed: ${err.message}`));
-    console.log(chalk.yellow("  You can enter a key manually, or press Enter to skip.\n"));
-    const manual = await promptOptional("Conway API key (cnwy_k_..., optional)");
-    if (manual) {
-      apiKey = manual;
-      // Save to config.json for loadApiKeyFromConfig()
-      const configDir = getAutomatonDir();
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
-      }
-      fs.writeFileSync(
-        path.join(configDir, "config.json"),
-        JSON.stringify({ apiKey, walletAddress: walletAddress, provisionedAt: new Date().toISOString() }, null, 2),
-        { mode: 0o600 },
-      );
-      console.log(chalk.green("  API key saved.\n"));
+  const manualApiKey = await promptOptional("Conway API key (cnwy_k_..., optional, press Enter to skip)");
+  if (manualApiKey) {
+    apiKey = manualApiKey;
+    // Save to config.json for loadApiKeyFromConfig()
+    const configDir = getAutomatonDir();
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
     }
-  }
-
-  if (!apiKey) {
-    console.log(chalk.yellow("  No API key set. The automaton will have limited functionality.\n"));
+    fs.writeFileSync(
+      path.join(configDir, "config.json"),
+      JSON.stringify({ apiKey, walletAddress: walletAddress, provisionedAt: new Date().toISOString() }, null, 2),
+      { mode: 0o600 },
+    );
+    console.log(chalk.green("  API key saved.\n"));
+  } else {
+    console.log(chalk.yellow("  No Conway API key set -- running on the AgentKit wallet only.\n"));
   }
 
   // ─── 3. Interactive questions ─────────────────────────────────

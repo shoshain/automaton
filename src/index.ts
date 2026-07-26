@@ -10,7 +10,7 @@
 import fs from "fs";
 import path from "path";
 import { getWallet, getAutomatonDir } from "./identity/wallet.js";
-import { provision, loadApiKeyFromConfig } from "./identity/provision.js";
+import { loadApiKeyFromConfig } from "./identity/provision.js";
 import { loadConfig, resolvePath } from "./config.js";
 import { createDatabase } from "./state/database.js";
 import { createConwayClient } from "./conway/client.js";
@@ -61,7 +61,6 @@ Usage:
   automaton --configure    Edit configuration (providers, model, treasury, general)
   automaton --pick-model   Interactively pick the active inference model
   automaton --init         Initialize wallet and config directory
-  automaton --provision    Provision Conway API key via SIWE
   automaton --status       Show current automaton status
   automaton --version      Show version
   automaton --help         Show this help
@@ -92,17 +91,6 @@ Environment:
         configDir: getAutomatonDir(),
       }),
     );
-    process.exit(0);
-  }
-
-  if (args.includes("--provision")) {
-    try {
-      const result = await provision();
-      logger.info(JSON.stringify(result));
-    } catch (err: any) {
-      logger.error(`Provision failed: ${err.message}`);
-      process.exit(1);
-    }
     process.exit(0);
   }
 
@@ -196,10 +184,15 @@ async function run(): Promise<void> {
   // Load wallet (chain-aware)
   const { account, chainIdentity, chainType: walletChainType } = await getWallet();
   const resolvedChainType = config.chainType || walletChainType || "evm";
-  const apiKey = config.conwayApiKey || loadApiKeyFromConfig();
+  // Conway API key is optional: SIWE auto-provisioning has been removed
+  // (see src/identity/provision.ts). The automaton's identity/payment
+  // mechanism is the local AgentKit wallet (src/wallet/agentkit-wallet.ts).
+  // An empty apiKey just means Conway API calls below are skipped/fail soft.
+  const apiKey = config.conwayApiKey || loadApiKeyFromConfig() || "";
   if (!apiKey) {
-    logger.error("No API key found. Run: automaton --provision");
-    process.exit(1);
+    logger.warn(
+      `[${new Date().toISOString()}] No Conway API key configured -- running without Conway API access.`,
+    );
   }
 
   // Initialize database

@@ -32,12 +32,6 @@ export interface WalletData {
   chainType?: ChainType;
 }
 
-export interface ProvisionResult {
-  apiKey: string;
-  walletAddress: string;
-  keyPrefix: string;
-}
-
 // ─── Configuration ───────────────────────────────────────────────
 
 export interface AutomatonConfig {
